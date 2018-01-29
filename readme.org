@@ -1,0 +1,9 @@
+This repo is my attempt to use the horseshoe prior on coefficients in
+a linear regression to estimate foliar traits from reflectance
+spectroscopy.
+
+horseshoe.org is the org mode text file.
+horseshoe.html is the html export of the org mode file.
+horseshoe.R is the R code from the org mode file.
+
+
