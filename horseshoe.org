@@ -30,11 +30,36 @@ options(mc.cores = parallel::detectCores())
 #+end_src
 
 #+RESULTS:
+#+begin_example
+Loading required package: Rcpp
+rstanarm (Version 2.17.2, packaged: 2017-12-20 23:59:28 UTC)
+- Do not expect the default priors to remain the same in future rstanarm versions.
+Thus, R scripts should specify priors explicitly, even if they are just the defaults.
+- For execution on a local, multicore CPU with excess RAM we recommend calling
+options(mc.cores = parallel::detectCores())
+- Plotting theme set to bayesplot::theme_default().
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+#+end_example
 
 ** load data and look at a plot of sample
+*** load data
+These data come from this paper: https://doi.org/10.1890/13-2110.1.
+Important note:  I don't really know the whole story behind these
+data, but they should work for the purposes of exploring the use of
+the horseshoe prior.
 
-Important note:  I don't really know the whole story behind these data.
-
+lma = leaf mass per area, a foliar trait.
+x = percent reflectance at a given wavelength.  wavelengths are column
+names and are in nanometers.
 #+begin_src R
 lma <- read_excel("data/FFT_LMA.xlsx")
 colnames(lma) <- c("sample", "lma") #renames columns to be same as "x" names and simplify them
@@ -52,6 +77,7 @@ d <- left_join(lma, x)# join data
 :   sample = col_character()
 : )
 : See spec(...) for full column specifications.
+: |=                                                                       |   1%|==                                                                      |   3%|===                                                                     |   4%|====                                                                    |   6%|=====                                                                   |   7%|======                                                                  |   9%|=======                                                                 |  10%|=========                                                               |  12%|=========                                                       |  13%    1 MB|==========                                                      |  15%    1 MB|===========                                                     |  16%    1 MB|============                                                    |  18%    1 MB|============                                                    |  19%    1 MB|=============                                                   |  21%    1 MB|==============                                                  |  23%    1 MB|===============                                                 |  24%    1 MB|================                                                |  26%    1 MB|=================                                               |  27%    2 MB|==================                                              |  29%    2 MB|===================                                             |  30%    2 MB|====================                                            |  32%    2 MB|=====================                                           |  33%    2 MB|======================                                          |  35%    2 MB|=======================                                         |  36%    2 MB|========================                                        |  38%    2 MB|=========================                                       |  39%    2 MB|==========================                                      |  41%    3 MB|===========================                                     |  42%    3 MB|============================                                    |  44%    3 MB|=============================                                   |  45%    3 MB|==============================                                  |  47%    3 MB|===============================                                 |  48%    3 MB|================================                                |  50%    3 MB|=================================                               |  51%    3 MB|==================================                              |  53%    4 MB|===================================                             |  54%    4 MB|====================================                            |  56%    4 MB|=====================================                           |  57%    4 MB|======================================                          |  59%    4 MB|=======================================                         |  60%    4 MB|========================================                        |  62%    4 MB|=========================================                       |  63%    4 MB|==========================================                      |  65%    4 MB|===========================================                     |  66%    5 MB|============================================                    |  68%    5 MB|=============================================                   |  70%    5 MB|==============================================                  |  71%    5 MB|===============================================                 |  73%    5 MB|================================================                |  74%    5 MB|=================================================               |  76%    5 MB|==================================================              |  77%    5 MB|===================================================             |  79%    5 MB|====================================================            |  80%    6 MB|=====================================================           |  82%    6 MB|======================================================          |  83%    6 MB|=======================================================         |  85%    6 MB|========================================================        |  86%    6 MB|=========================================================       |  88%    6 MB|==========================================================      |  89%    6 MB|===========================================================     |  91%    6 MB|============================================================    |  92%    6 MB|=============================================================   |  94%    7 MB|==============================================================  |  95%    7 MB|=============================================================== |  97%    7 MB|================================================================|  98%    7 MB|=================================================================| 100%    7 MB
 : Joining, by = "sample"
 
 drop leaves for which we have no spectra (not sure why this is so).
@@ -61,6 +87,7 @@ dc <- dplyr::filter(d, complete.cases(d))
 
 #+RESULTS:
 
+*** plot data
 reshape data for plotting
 #+begin_src R
 dcr <- dc %>% sample_n(., 30) %>% gather(key = wv, value = refl, -sample, -lma)
@@ -70,8 +97,8 @@ dcr <- dcr %>% rowwise() %>% mutate(wv = as.numeric(str_sub(wv, 2, nchar(wv))))
 #+RESULTS:
 
 #+begin_src R :exports results :results graphics :file figs/test_spectra.png
-p <- ggplot(dcr, aes(x = wv, y = refl, color = lma, group = sample)) + geom_line() + theme(legend.position = c(.85,.85))
-print(p)
+plt <- ggplot(dcr, aes(x = wv, y = refl, color = lma, group = sample)) + geom_line() + theme(legend.position = c(.85,.85))
+print(plt)
 #+end_src
 
 #+RESULTS:
@@ -90,8 +117,18 @@ most the discrimination of leaf lma appears to happen in the SWIR
 Also, there are a handful of spectra in the sample of 30 that are
 pretty noisy out in the SWIR.
 
+x's are very correlated.
+#+begin_src R :exports both :results graphics :file figs/cor.png :width 1500 :height 1500
+library(corrplot)
+a <- spread(dcr, key = wv, value = refl)
+colnames(a) <- ifelse(nchar(colnames(a)) == 3, paste0("0",colnames(a)), colnames(a))  # to make alphabetic ordering work right
+a[,seq(3,ncol(a),20)] %>% cor %>% corrplot(order = "alphabet", type = "upper", method = "color")
+#+end_src
 
-** fit model
+#+RESULTS:
+[[file:figs/cor.png]]
+
+** fitting model
 #+begin_src R
 dim(dc)
 #+end_src
@@ -99,37 +136,43 @@ dim(dc)
 #+RESULTS:
 : [1]  302 2153
 
+I'll subset the data for faster fitting during the exploratory phase
+
 #+begin_src R
-  y <- dc$lma
-  x <- as.matrix(dc[,3:ncol(dc)])
-
-  i <- sample(1:length(dc$lma), 40)
-  y <- y[i]
-  x <- x[i, sample(1:ncol(x), 70)]
-                                          # x <- x[i, paste0("X",2200:2300)]
-
-  y <- y - mean(y)  # center y
-  x <- x * 100
-
-  p0 <- 4 # prior guess for the number of non zero coefficients
-  sigmaguess <- 5
-  n <- length(y)
-  D <- ncol(x)
-  tau0 <- p0 / (D - p0) * sigmaguess/sqrt(n)
-
-
+n <- 30 # number of observations to sample
+p <- 100 # number of wavelengths to sample
+rows <- sample(1:nrow(dc),n)
+cols <- sample(3:ncol(dc),p)
+dcs <- dc[rows, c(2,cols)]  # make sure I keep column 2, which contains the target response, lma.
 #+end_src
 
 #+RESULTS:
 
-
 #+begin_src R
-
+dim(dcs)
 #+end_src
 
+#+RESULTS:
+: [1]  30 101
+
+center the response, lma
 #+begin_src R
-fit <- stan_glm(y ~ x, gaussian(), prior = hs(global_scale=tau0), prior_intercept = normal())
-#fit <- stan_glm(y ~ x, gaussian(), prior = normal())
+dcs$lma <- dcs$lma - mean(dcs$lma)
+#+end_src
+
+#+RESULTS:
+
+caluculate \tau_0
+#+begin_src R
+  p0 <- 4 # prior guess for the number of non zero coefficients
+  sigmaguess <- 5
+  tau0 <- p0 / (p - p0) * sigmaguess/sqrt(n)
+#+end_src
+
+#+RESULTS:
+
+#+begin_src R
+fit <- stan_glm(lma ~ ., data = dcs, gaussian(), prior = hs(global_scale=tau0), prior_intercept = normal())
 #+end_src
 
 #+RESULTS:
@@ -137,8 +180,8 @@ fit <- stan_glm(y ~ x, gaussian(), prior = hs(global_scale=tau0), prior_intercep
 
 SAMPLING FOR MODEL 'continuous' NOW (CHAIN 1).
 
-Gradient evaluation took 0.000275 seconds
-1000 transitions using 10 leapfrog steps per transition would take 2.75 seconds.
+Gradient evaluation took 0.000421 seconds
+1000 transitions using 10 leapfrog steps per transition would take 4.21 seconds.
 Adjust your expectations accordingly!
 
 
@@ -146,8 +189,8 @@ Iteration:    1 / 2000 [  0%]  (Warmup)
 
 SAMPLING FOR MODEL 'continuous' NOW (CHAIN 2).
 
-Gradient evaluation took 0.000382 seconds
-1000 transitions using 10 leapfrog steps per transition would take 3.82 seconds.
+Gradient evaluation took 0.000314 seconds
+1000 transitions using 10 leapfrog steps per transition would take 3.14 seconds.
 Adjust your expectations accordingly!
 
 
@@ -155,8 +198,8 @@ Iteration:    1 / 2000 [  0%]  (Warmup)
 
 SAMPLING FOR MODEL 'continuous' NOW (CHAIN 3).
 
-Gradient evaluation took 0.000435 seconds
-1000 transitions using 10 leapfrog steps per transition would take 4.35 seconds.
+Gradient evaluation took 0.000431 seconds
+1000 transitions using 10 leapfrog steps per transition would take 4.31 seconds.
 Adjust your expectations accordingly!
 
 
@@ -164,78 +207,75 @@ Iteration:    1 / 2000 [  0%]  (Warmup)
 
 SAMPLING FOR MODEL 'continuous' NOW (CHAIN 4).
 
-Gradient evaluation took 0.000396 seconds
-1000 transitions using 10 leapfrog steps per transition would take 3.96 seconds.
+Gradient evaluation took 0.000383 seconds
+1000 transitions using 10 leapfrog steps per transition would take 3.83 seconds.
 Adjust your expectations accordingly!
 
 
 Iteration:    1 / 2000 [  0%]  (Warmup)
 Iteration:  200 / 2000 [ 10%]  (Warmup)
 Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
 Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
 Iteration:  200 / 2000 [ 10%]  (Warmup)
-Iteration:  400 / 2000 [ 20%]  (Warmup)
-Iteration:  400 / 2000 [ 20%]  (Warmup)
-Iteration:  400 / 2000 [ 20%]  (Warmup)
-Iteration:  400 / 2000 [ 20%]  (Warmup)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
 Iteration:  600 / 2000 [ 30%]  (Warmup)
-Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
 Iteration:  600 / 2000 [ 30%]  (Warmup)
 Iteration:  600 / 2000 [ 30%]  (Warmup)
 Iteration:  800 / 2000 [ 40%]  (Warmup)
-Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
 Iteration:  800 / 2000 [ 40%]  (Warmup)
 Iteration:  800 / 2000 [ 40%]  (Warmup)
 Iteration: 1000 / 2000 [ 50%]  (Warmup)
 Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Iteration: 1000 / 2000 [ 50%]  (Warmup)
-Iteration: 1000 / 2000 [ 50%]  (Warmup)
-Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Iteration: 1001 / 2000 [ 50%]  (Sampling)
 Iteration: 1200 / 2000 [ 60%]  (Sampling)
 Iteration: 1000 / 2000 [ 50%]  (Warmup)
 Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
 Iteration: 1200 / 2000 [ 60%]  (Sampling)
 Iteration: 1200 / 2000 [ 60%]  (Sampling)
 Iteration: 1400 / 2000 [ 70%]  (Sampling)
-Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Iteration: 1400 / 2000 [ 70%]  (Sampling)
 Iteration: 1400 / 2000 [ 70%]  (Sampling)
 Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Iteration: 1800 / 2000 [ 90%]  (Sampling)
-Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 11.6105 seconds (Warm-up)
+               12.2637 seconds (Sampling)
+               23.8742 seconds (Total)
+
 Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Iteration: 2000 / 2000 [100%]  (Sampling)
 
- Elapsed Time: 13.3565 seconds (Warm-up)
-               10.2148 seconds (Sampling)
-               23.5713 seconds (Total)
+ Elapsed Time: 13.4465 seconds (Warm-up)
+               11.9388 seconds (Sampling)
+               25.3852 seconds (Total)
 
 Iteration: 2000 / 2000 [100%]  (Sampling)
 
- Elapsed Time: 14.2866 seconds (Warm-up)
-               9.8529 seconds (Sampling)
-               24.1395 seconds (Total)
+ Elapsed Time: 14.7708 seconds (Warm-up)
+               11.3052 seconds (Sampling)
+               26.076 seconds (Total)
 
 Iteration: 2000 / 2000 [100%]  (Sampling)
 
- Elapsed Time: 14.8092 seconds (Warm-up)
-               10.001 seconds (Sampling)
-               24.8102 seconds (Total)
-
-Iteration: 1600 / 2000 [ 80%]  (Sampling)
-Iteration: 1800 / 2000 [ 90%]  (Sampling)
-Iteration: 2000 / 2000 [100%]  (Sampling)
-
- Elapsed Time: 14.0361 seconds (Warm-up)
-               15.1721 seconds (Sampling)
-               29.2082 seconds (Total)
-
-Warning message:
-Omitting the 'data' argument is not recommended and may not be allowed in future versions of rstanarm. Some post-estimation functions (in particular 'update', 'loo', 'kfold') are not guaranteed to work properly unless 'data' is specified as a data frame.
+ Elapsed Time: 14.6839 seconds (Warm-up)
+               11.2151 seconds (Sampling)
+               25.899 seconds (Total)
 #+end_example
 
 
@@ -245,85 +285,11 @@ plot(fit)
 
 #+RESULTS:
 [[file:../figs/coefs.png]]
-#+begin_src R
-  df <- cbind(y,x) %>% data.frame
-  m <- lm(y ~ ., data = df)
-#+end_src
 
-#+begin_src R
-summary(m)
-#+end_src
+The coefficients aren't shrunk towards zero like I would have
+expected. Is this due to the nature of the data, or how I specified
+the model?
 
-#+RESULTS:
-#+begin_example
 
-Call:
-lm(formula = y ~ ., data = df)
 
-Residuals:
-    Min      1Q  Median      3Q     Max
--7.1562 -1.2704 -0.1954  2.2739  4.8424
 
-Coefficients:
-              Estimate Std. Error t value Pr(>|t|)
-(Intercept)  -38.72416   32.35184  -1.197   0.2619
-X1240         29.40936   48.63905   0.605   0.5603
-X1877         -5.71773   20.14704  -0.284   0.7830
-X2172        -27.23212   47.09913  -0.578   0.5773
-X569          -7.66338    4.23112  -1.811   0.1035
-X1684        128.17614  260.32632   0.492   0.6342
-X1851         26.33551   27.60994   0.954   0.3651
-X2415         -0.33308    7.49037  -0.044   0.9655
-X948         119.41308   62.33362   1.916   0.0877 .
-X791         -21.17839   12.08126  -1.753   0.1135
-X2021         -0.06326   10.31009  -0.006   0.9952
-X2151        -21.19600   30.79198  -0.688   0.5086
-X700           3.16674    4.37182   0.724   0.4873
-X981        -107.91687   64.35818  -1.677   0.1279
-X1681         61.73475  333.95915   0.185   0.8574
-X1294        -12.52553   42.07770  -0.298   0.7727
-X1724        -42.40363   18.30776  -2.316   0.0458 *
-X1677       -179.59842  127.42329  -1.409   0.1923
-X1492         19.85274   66.97621   0.296   0.7736
-X1473        -17.13787   68.11338  -0.252   0.8070
-X2160         50.63235   48.38710   1.046   0.3227
----
-Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-Residual standard error: 5.144 on 9 degrees of freedom
-Multiple R-squared:  0.9802,	Adjusted R-squared:  0.9362
-F-statistic: 22.27 on 20 and 9 DF,  p-value: 2.274e-05
-#+end_example
-
-#+begin_src R
-  m <- lm(y ~ X1724 + X948, data = df)
-#+end_src
-
-#+RESULTS:
-
-#+begin_src R
-summary(m)
-#+end_src
-
-#+RESULTS:
-#+begin_example
-
-Call:
-lm(formula = y ~ X1724 + X948, data = df)
-
-Residuals:
-    Min      1Q  Median      3Q     Max
--14.687  -4.918  -1.397   5.364  13.831
-
-Coefficients:
-            Estimate Std. Error t value Pr(>|t|)
-(Intercept)  14.7816    23.3166   0.634    0.531
-X1724        -6.6379     0.5153 -12.882 4.82e-13 ***
-X948          4.3071     0.5064   8.505 4.05e-09 ***
----
-Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-Residual standard error: 7.353 on 27 degrees of freedom
-Multiple R-squared:  0.8786,	Adjusted R-squared:  0.8696
-F-statistic: 97.69 on 2 and 27 DF,  p-value: 4.342e-13
-#+end_example
