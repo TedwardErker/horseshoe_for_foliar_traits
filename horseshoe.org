@@ -5,15 +5,6 @@
 -----
 Fitting n << p model.  LMA ~ hyperspectral data
 
-see these slides
-https://github.com/avehtari/modelselection_tutorial/blob/master/regularizedhorseshoe_slides.pdf
-
-see this paper
-https://arxiv.org/pdf/1707.01694.pdf
-
-gelman blog post
-http://andrewgelman.com/2017/02/14/lasso-regression-etc-stan/
-
 * Regularized Horseshoe
 ** libraries
 #+begin_src R
@@ -57,9 +48,12 @@ Important note:  I don't really know the whole story behind these
 data, but they should work for the purposes of exploring the use of
 the horseshoe prior.
 
-lma = leaf mass per area, a foliar trait.
-x = percent reflectance at a given wavelength.  wavelengths are column
+obs unit, each row: a leaf identified by "sample"
+response: lma = leaf mass per area, a foliar trait.
+predictors, x = percent reflectance at a given wavelength.  wavelengths are column
 names and are in nanometers.
+
+
 #+begin_src R
 lma <- read_excel("data/FFT_LMA.xlsx")
 colnames(lma) <- c("sample", "lma") #renames columns to be same as "x" names and simplify them
@@ -87,6 +81,40 @@ dc <- dplyr::filter(d, complete.cases(d))
 
 #+RESULTS:
 
+#+begin_src R
+head(dc)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+# A tibble: 6 x 2,153
+       sample      lma      X999      X998      X997      X996      X995
+        <chr>    <dbl>     <dbl>     <dbl>     <dbl>     <dbl>     <dbl>
+1 NC03_FRAM_B 18.16374 0.4113146 0.4114115 0.4114785 0.4114507 0.4113866
+2 PM01_FRPE_B 19.13258 0.4174238 0.4174014 0.4173028 0.4172584 0.4173062
+3 PM02_OSVI_B 19.44623 0.3993568 0.3993150 0.3991895 0.3991744 0.3992724
+4 BH03_CAOV_B 19.60146 0.3783291 0.3786360 0.3789238 0.3789275 0.3789690
+5 BH07_OSVI_B 20.02637 0.3799481 0.3799939 0.3800162 0.3799387 0.3800192
+6 BI03_OSVI_B 20.12972 0.4009787 0.4010846 0.4011427 0.4010872 0.4010471
+# ... with 2146 more variables: X994 <dbl>, X993 <dbl>, X992 <dbl>, X991 <dbl>,
+#   X990 <dbl>, X989 <dbl>, X988 <dbl>, X987 <dbl>, X986 <dbl>, X985 <dbl>,
+#   X984 <dbl>, X983 <dbl>, X982 <dbl>, X981 <dbl>, X980 <dbl>, X979 <dbl>,
+#   X978 <dbl>, X977 <dbl>, X976 <dbl>, X975 <dbl>, X974 <dbl>, X973 <dbl>,
+#   X972 <dbl>, X971 <dbl>, X970 <dbl>, X969 <dbl>, X968 <dbl>, X967 <dbl>,
+#   X966 <dbl>, X965 <dbl>, X964 <dbl>, X963 <dbl>, X962 <dbl>, X961 <dbl>,
+#   X960 <dbl>, X959 <dbl>, X958 <dbl>, X957 <dbl>, X956 <dbl>, X955 <dbl>,
+#   X954 <dbl>, X953 <dbl>, X952 <dbl>, X951 <dbl>, X950 <dbl>, X949 <dbl>,
+#   X948 <dbl>, X947 <dbl>, X946 <dbl>, X945 <dbl>, X944 <dbl>, X943 <dbl>,
+#   X942 <dbl>, X941 <dbl>, X940 <dbl>, X939 <dbl>, X938 <dbl>, X937 <dbl>,
+#   X936 <dbl>, X935 <dbl>, X934 <dbl>, X933 <dbl>, X932 <dbl>, X931 <dbl>,
+#   X930 <dbl>, X929 <dbl>, X928 <dbl>, X927 <dbl>, X926 <dbl>, X925 <dbl>,
+#   X924 <dbl>, X923 <dbl>, X922 <dbl>, X921 <dbl>, X920 <dbl>, X919 <dbl>,
+#   X918 <dbl>, X917 <dbl>, X916 <dbl>, X915 <dbl>, X914 <dbl>, X913 <dbl>,
+#   X912 <dbl>, X911 <dbl>, X910 <dbl>, X909 <dbl>, X908 <dbl>, X907 <dbl>,
+#   X906 <dbl>, X905 <dbl>, X904 <dbl>, X903 <dbl>, X902 <dbl>, X901 <dbl>,
+#   X900 <dbl>, X899 <dbl>, X898 <dbl>, X897 <dbl>, X896 <dbl>, X895 <dbl>, ...
+#+end_example
+
 *** plot data
 reshape data for plotting
 #+begin_src R
@@ -112,17 +140,17 @@ If you want to look at the plot in plotly
 
 #+RESULTS:
 
-most the discrimination of leaf lma appears to happen in the SWIR
+much the discrimination of leaf lma appears to happen in the SWIR
 (greater than ~1500nm).
 Also, there are a handful of spectra in the sample of 30 that are
 pretty noisy out in the SWIR.
 
-x's are very correlated.
+x's are very correlated.  The response, lma, is the last column.
 #+begin_src R :exports both :results graphics :file figs/cor.png :width 1500 :height 1500
 library(corrplot)
 a <- spread(dcr, key = wv, value = refl)
-colnames(a) <- ifelse(nchar(colnames(a)) == 3, paste0("0",colnames(a)), colnames(a))  # to make alphabetic ordering work right
-a[,seq(3,ncol(a),20)] %>% cor %>% corrplot(order = "alphabet", type = "upper", method = "color")
+colnames(a)[-2] <- ifelse(nchar(colnames(a)[-2]) == 3, paste0("0",colnames(a)[-2]), colnames(a)[-2])  # to make alphabetic ordering work right
+a[,c(2,seq(3,ncol(a),20))] %>% cor %>% corrplot(order = "alphabet", type = "upper", method = "color")
 #+end_src
 
 #+RESULTS:
@@ -139,8 +167,8 @@ dim(dc)
 I'll subset the data for faster fitting during the exploratory phase
 
 #+begin_src R
-n <- 30 # number of observations to sample
-p <- 100 # number of wavelengths to sample
+n <- 50 # number of observations to sample
+p <- 80 # number of wavelengths to sample
 rows <- sample(1:nrow(dc),n)
 cols <- sample(3:ncol(dc),p)
 dcs <- dc[rows, c(2,cols)]  # make sure I keep column 2, which contains the target response, lma.
@@ -153,7 +181,7 @@ dim(dcs)
 #+end_src
 
 #+RESULTS:
-: [1]  30 101
+: [1] 50 81
 
 center the response, lma
 #+begin_src R
@@ -165,11 +193,12 @@ dcs$lma <- dcs$lma - mean(dcs$lma)
 caluculate \tau_0
 #+begin_src R
   p0 <- 4 # prior guess for the number of non zero coefficients
-  sigmaguess <- 5
+  sigmaguess <- 5  # guess for sigma of gaussian response
   tau0 <- p0 / (p - p0) * sigmaguess/sqrt(n)
+tau0
 #+end_src
 
-#+RESULTS:
+tau0 is src_R[:exports results]{tau0} {{{results(=[1] 0.03721615=)}}}
 
 #+begin_src R
 fit <- stan_glm(lma ~ ., data = dcs, gaussian(), prior = hs(global_scale=tau0), prior_intercept = normal())
@@ -180,106 +209,107 @@ fit <- stan_glm(lma ~ ., data = dcs, gaussian(), prior = hs(global_scale=tau0), 
 
 SAMPLING FOR MODEL 'continuous' NOW (CHAIN 1).
 
-Gradient evaluation took 0.000421 seconds
-1000 transitions using 10 leapfrog steps per transition would take 4.21 seconds.
+Gradient evaluation took 0.00017 seconds
+1000 transitions using 10 leapfrog steps per transition would take 1.7 seconds.
 Adjust your expectations accordingly!
 
 
 Iteration:    1 / 2000 [  0%]  (Warmup)
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
 
 SAMPLING FOR MODEL 'continuous' NOW (CHAIN 2).
 
-Gradient evaluation took 0.000314 seconds
-1000 transitions using 10 leapfrog steps per transition would take 3.14 seconds.
+Gradient evaluation took 0.00017 seconds
+1000 transitions using 10 leapfrog steps per transition would take 1.7 seconds.
 Adjust your expectations accordingly!
 
 
 Iteration:    1 / 2000 [  0%]  (Warmup)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
 
 SAMPLING FOR MODEL 'continuous' NOW (CHAIN 3).
 
-Gradient evaluation took 0.000431 seconds
-1000 transitions using 10 leapfrog steps per transition would take 4.31 seconds.
+Gradient evaluation took 0.000211 seconds
+1000 transitions using 10 leapfrog steps per transition would take 2.11 seconds.
 Adjust your expectations accordingly!
 
 
 Iteration:    1 / 2000 [  0%]  (Warmup)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 0.734682 seconds (Warm-up)
+               0.647442 seconds (Sampling)
+               1.38212 seconds (Total)
+
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
 
 SAMPLING FOR MODEL 'continuous' NOW (CHAIN 4).
 
-Gradient evaluation took 0.000383 seconds
-1000 transitions using 10 leapfrog steps per transition would take 3.83 seconds.
+Gradient evaluation took 0.000225 seconds
+1000 transitions using 10 leapfrog steps per transition would take 2.25 seconds.
 Adjust your expectations accordingly!
 
 
 Iteration:    1 / 2000 [  0%]  (Warmup)
-Iteration:  200 / 2000 [ 10%]  (Warmup)
-Iteration:  200 / 2000 [ 10%]  (Warmup)
 Iteration:  400 / 2000 [ 20%]  (Warmup)
-Iteration:  200 / 2000 [ 10%]  (Warmup)
-Iteration:  400 / 2000 [ 20%]  (Warmup)
-Iteration:  600 / 2000 [ 30%]  (Warmup)
-Iteration:  400 / 2000 [ 20%]  (Warmup)
-Iteration:  200 / 2000 [ 10%]  (Warmup)
-Iteration:  800 / 2000 [ 40%]  (Warmup)
-Iteration:  600 / 2000 [ 30%]  (Warmup)
-Iteration:  400 / 2000 [ 20%]  (Warmup)
-Iteration:  600 / 2000 [ 30%]  (Warmup)
-Iteration:  600 / 2000 [ 30%]  (Warmup)
-Iteration:  800 / 2000 [ 40%]  (Warmup)
-Iteration: 1000 / 2000 [ 50%]  (Warmup)
-Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Iteration:  800 / 2000 [ 40%]  (Warmup)
-Iteration:  800 / 2000 [ 40%]  (Warmup)
-Iteration: 1000 / 2000 [ 50%]  (Warmup)
-Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Iteration: 1200 / 2000 [ 60%]  (Sampling)
-Iteration: 1000 / 2000 [ 50%]  (Warmup)
-Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Iteration: 1000 / 2000 [ 50%]  (Warmup)
-Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Iteration: 1200 / 2000 [ 60%]  (Sampling)
-Iteration: 1400 / 2000 [ 70%]  (Sampling)
-Iteration: 1200 / 2000 [ 60%]  (Sampling)
-Iteration: 1200 / 2000 [ 60%]  (Sampling)
-Iteration: 1400 / 2000 [ 70%]  (Sampling)
 Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 0.764785 seconds (Warm-up)
+               0.686873 seconds (Sampling)
+               1.45166 seconds (Total)
+
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
 Iteration: 1400 / 2000 [ 70%]  (Sampling)
-Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
 Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Iteration: 1800 / 2000 [ 90%]  (Sampling)
-Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 1.04285 seconds (Warm-up)
+               0.514942 seconds (Sampling)
+               1.55779 seconds (Total)
+
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
 Iteration: 1600 / 2000 [ 80%]  (Sampling)
 Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Iteration: 2000 / 2000 [100%]  (Sampling)
 
- Elapsed Time: 11.6105 seconds (Warm-up)
-               12.2637 seconds (Sampling)
-               23.8742 seconds (Total)
-
-Iteration: 1800 / 2000 [ 90%]  (Sampling)
-Iteration: 1800 / 2000 [ 90%]  (Sampling)
-Iteration: 2000 / 2000 [100%]  (Sampling)
-
- Elapsed Time: 13.4465 seconds (Warm-up)
-               11.9388 seconds (Sampling)
-               25.3852 seconds (Total)
-
-Iteration: 2000 / 2000 [100%]  (Sampling)
-
- Elapsed Time: 14.7708 seconds (Warm-up)
-               11.3052 seconds (Sampling)
-               26.076 seconds (Total)
-
-Iteration: 2000 / 2000 [100%]  (Sampling)
-
- Elapsed Time: 14.6839 seconds (Warm-up)
-               11.2151 seconds (Sampling)
-               25.899 seconds (Total)
+ Elapsed Time: 0.961591 seconds (Warm-up)
+               0.48452 seconds (Sampling)
+               1.44611 seconds (Total)
 #+end_example
 
+All the diagnotics look good.  Most n_effs are 4000, Rhats are 1.0.
 
-#+begin_src R :exports results :results graphics :file ../figs/coefs.png
+#+begin_src R :exports results :results graphics :file ../figs/coefs.png :height 800
 plot(fit)
 #+end_src
 
@@ -289,6 +319,58 @@ plot(fit)
 The coefficients aren't shrunk towards zero like I would have
 expected. Is this due to the nature of the data, or how I specified
 the model?
+
+hmmm....
+
+** OLS with a few wavelengths as predictors
+
+There is plenty of information in the data to estimate lma.
+
+#+begin_src R
+dcss <- dcs[,1:5]
+m <- lm(lma ~ ., dcss)
+#+end_src
+
+#+RESULTS:
+
+#+begin_src R
+summary(m)
+#+end_src
+
+#+RESULTS:
+#+begin_example
+
+Call:
+lm(formula = lma ~ ., data = dcss)
+
+Residuals:
+     Min       1Q   Median       3Q      Max
+-14.6340  -4.7781  -0.6099   5.4627  14.8608
+
+Coefficients:
+             Estimate Std. Error t value Pr(>|t|)
+(Intercept)     2.015     19.867   0.101   0.9197
+X2406         272.151    158.902   1.713   0.0937 .
+X1761       -1180.422    188.178  -6.273 1.23e-07 ***
+X1329         814.137    119.195   6.830 1.82e-08 ***
+X645         -245.982    206.772  -1.190   0.2404
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 7.01 on 45 degrees of freedom
+Multiple R-squared:  0.911,	Adjusted R-squared:  0.9031
+F-statistic: 115.2 on 4 and 45 DF,  p-value: < 2.2e-16
+#+end_example
+
+* some references
+see these slides
+https://github.com/avehtari/modelselection_tutorial/blob/master/regularizedhorseshoe_slides.pdf
+
+see this paper
+https://arxiv.org/pdf/1707.01694.pdf
+
+gelman blog post
+http://andrewgelman.com/2017/02/14/lasso-regression-etc-stan/
 
 
 

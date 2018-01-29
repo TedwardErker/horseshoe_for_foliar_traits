@@ -1,0 +1,701 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2018-01-29 Mon 12:38 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Predict LMA from leaf spectra with regularized horseshoe prior (e.g.N &lt; P model)</title>
+<meta name="generator" content="Org mode" />
+<meta name="author" content="Tedward Erker" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2017 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Predict LMA from leaf spectra with regularized horseshoe prior (e.g.N &lt; P model)</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#orgc302759">1. Regularized Horseshoe</a>
+<ul>
+<li><a href="#org27dab89">1.1. libraries</a></li>
+<li><a href="#org05c7ebc">1.2. load data and look at a plot of sample</a>
+<ul>
+<li><a href="#orgc9c19f6">1.2.1. load data</a></li>
+<li><a href="#org164fb9e">1.2.2. plot data</a></li>
+</ul>
+</li>
+<li><a href="#org9f90443">1.3. fitting model</a></li>
+<li><a href="#org5cc21c8">1.4. OLS with a few wavelengths as predictors</a></li>
+</ul>
+</li>
+<li><a href="#org45bfabc">2. some references</a></li>
+</ul>
+</div>
+</div>
+<hr />
+<p>
+Fitting n &lt;&lt; p model.  LMA ~ hyperspectral data
+</p>
+
+<div id="outline-container-orgc302759" class="outline-2">
+<h2 id="orgc302759"><span class="section-number-2">1</span> Regularized Horseshoe</h2>
+<div class="outline-text-2" id="text-1">
+</div><div id="outline-container-org27dab89" class="outline-3">
+<h3 id="org27dab89"><span class="section-number-3">1.1</span> libraries</h3>
+<div class="outline-text-3" id="text-1-1">
+<div class="org-src-container">
+<pre class="src src-R"><span style="color: #268bd2; font-weight: bold;">library</span>(rstanarm)
+<span style="color: #268bd2; font-weight: bold;">library</span>(readr)
+<span style="color: #268bd2; font-weight: bold;">library</span>(readxl)
+<span style="color: #268bd2; font-weight: bold;">library</span>(dplyr)
+<span style="color: #268bd2; font-weight: bold;">library</span>(ggplot2)
+<span style="color: #268bd2; font-weight: bold;">library</span>(tidyr)
+<span style="color: #268bd2; font-weight: bold;">library</span>(stringr)
+
+options(mc.cores = parallel::detectCores())
+
+</pre>
+</div>
+
+<pre class="example">
+Loading required package: Rcpp
+rstanarm (Version 2.17.2, packaged: 2017-12-20 23:59:28 UTC)
+- Do not expect the default priors to remain the same in future rstanarm versions.
+Thus, R scripts should specify priors explicitly, even if they are just the defaults.
+- For execution on a local, multicore CPU with excess RAM we recommend calling
+options(mc.cores = parallel::detectCores())
+- Plotting theme set to bayesplot::theme_default().
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org05c7ebc" class="outline-3">
+<h3 id="org05c7ebc"><span class="section-number-3">1.2</span> load data and look at a plot of sample</h3>
+<div class="outline-text-3" id="text-1-2">
+</div><div id="outline-container-orgc9c19f6" class="outline-4">
+<h4 id="orgc9c19f6"><span class="section-number-4">1.2.1</span> load data</h4>
+<div class="outline-text-4" id="text-1-2-1">
+<p>
+These data come from this paper: <a href="https://doi.org/10.1890/13-2110.1">https://doi.org/10.1890/13-2110.1</a>.
+Important note:  I don't really know the whole story behind these
+data, but they should work for the purposes of exploring the use of
+the horseshoe prior.
+</p>
+
+<p>
+obs unit, each row: a leaf identified by "sample"
+response: lma = leaf mass per area, a foliar trait.
+predictors, x = percent reflectance at a given wavelength.  wavelengths are column
+names and are in nanometers.
+</p>
+
+
+<div class="org-src-container">
+<pre class="src src-R">lma <span style="color: #268bd2; font-weight: bold;">&lt;-</span> read_excel(<span style="color: #2aa198;">"data/FFT_LMA.xlsx"</span>)
+colnames(lma) <span style="color: #268bd2; font-weight: bold;">&lt;-</span> c(<span style="color: #2aa198;">"sample"</span>, <span style="color: #2aa198;">"lma"</span>) <span style="color: #93a1a1;">#</span><span style="color: #93a1a1;">renames columns to be same as "x" names and simplify them</span>
+x <span style="color: #268bd2; font-weight: bold;">&lt;-</span> read_csv(<span style="color: #2aa198;">"data/FFT_Spectra_and_NIT_broadleaf.csv"</span>)
+cn <span style="color: #268bd2; font-weight: bold;">&lt;-</span> colnames(x)
+colnames(x) <span style="color: #268bd2; font-weight: bold;">&lt;-</span> ifelse(!grepl(<span style="color: #2aa198;">"^[0-9].*"</span>,cn), cn, paste0(<span style="color: #2aa198;">"X"</span>,cn)) <span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">rename columns so they don't start with numbers</span>
+x <span style="color: #268bd2; font-weight: bold;">&lt;-</span> select(x, -nitrogen_percent) <span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">drop nitrogen, not our target</span>
+d <span style="color: #268bd2; font-weight: bold;">&lt;-</span> left_join(lma, x)<span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">join data</span>
+</pre>
+</div>
+
+<pre class="example">
+Parsed with column specification:
+cols(
+  .default = col_double(),
+  sample = col_character()
+)
+See spec(...) for full column specifications.
+|=                                                                       |   1%|==                                                                      |   3%|===                                                                     |   4%|====                                                                    |   6%|=====                                                                   |   7%|======                                                                  |   9%|=======                                                                 |  10%|=========                                                               |  12%|=========                                                       |  13%    1 MB|==========                                                      |  15%    1 MB|===========                                                     |  16%    1 MB|============                                                    |  18%    1 MB|============                                                    |  19%    1 MB|=============                                                   |  21%    1 MB|==============                                                  |  23%    1 MB|===============                                                 |  24%    1 MB|================                                                |  26%    1 MB|=================                                               |  27%    2 MB|==================                                              |  29%    2 MB|===================                                             |  30%    2 MB|====================                                            |  32%    2 MB|=====================                                           |  33%    2 MB|======================                                          |  35%    2 MB|=======================                                         |  36%    2 MB|========================                                        |  38%    2 MB|=========================                                       |  39%    2 MB|==========================                                      |  41%    3 MB|===========================                                     |  42%    3 MB|============================                                    |  44%    3 MB|=============================                                   |  45%    3 MB|==============================                                  |  47%    3 MB|===============================                                 |  48%    3 MB|================================                                |  50%    3 MB|=================================                               |  51%    3 MB|==================================                              |  53%    4 MB|===================================                             |  54%    4 MB|====================================                            |  56%    4 MB|=====================================                           |  57%    4 MB|======================================                          |  59%    4 MB|=======================================                         |  60%    4 MB|========================================                        |  62%    4 MB|=========================================                       |  63%    4 MB|==========================================                      |  65%    4 MB|===========================================                     |  66%    5 MB|============================================                    |  68%    5 MB|=============================================                   |  70%    5 MB|==============================================                  |  71%    5 MB|===============================================                 |  73%    5 MB|================================================                |  74%    5 MB|=================================================               |  76%    5 MB|==================================================              |  77%    5 MB|===================================================             |  79%    5 MB|====================================================            |  80%    6 MB|=====================================================           |  82%    6 MB|======================================================          |  83%    6 MB|=======================================================         |  85%    6 MB|========================================================        |  86%    6 MB|=========================================================       |  88%    6 MB|==========================================================      |  89%    6 MB|===========================================================     |  91%    6 MB|============================================================    |  92%    6 MB|=============================================================   |  94%    7 MB|==============================================================  |  95%    7 MB|=============================================================== |  97%    7 MB|================================================================|  98%    7 MB|=================================================================| 100%    7 MB
+Joining, by = "sample"
+
+</pre>
+
+<p>
+drop leaves for which we have no spectra (not sure why this is so).
+</p>
+<div class="org-src-container">
+<pre class="src src-R">dc <span style="color: #268bd2; font-weight: bold;">&lt;-</span> dplyr::filter(d, complete.cases(d))
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-R">head(dc)
+</pre>
+</div>
+
+<pre class="example">
+# A tibble: 6 x 2,153
+       sample      lma      X999      X998      X997      X996      X995
+        &lt;chr&gt;    &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;
+1 NC03_FRAM_B 18.16374 0.4113146 0.4114115 0.4114785 0.4114507 0.4113866
+2 PM01_FRPE_B 19.13258 0.4174238 0.4174014 0.4173028 0.4172584 0.4173062
+3 PM02_OSVI_B 19.44623 0.3993568 0.3993150 0.3991895 0.3991744 0.3992724
+4 BH03_CAOV_B 19.60146 0.3783291 0.3786360 0.3789238 0.3789275 0.3789690
+5 BH07_OSVI_B 20.02637 0.3799481 0.3799939 0.3800162 0.3799387 0.3800192
+6 BI03_OSVI_B 20.12972 0.4009787 0.4010846 0.4011427 0.4010872 0.4010471
+# ... with 2146 more variables: X994 &lt;dbl&gt;, X993 &lt;dbl&gt;, X992 &lt;dbl&gt;, X991 &lt;dbl&gt;,
+#   X990 &lt;dbl&gt;, X989 &lt;dbl&gt;, X988 &lt;dbl&gt;, X987 &lt;dbl&gt;, X986 &lt;dbl&gt;, X985 &lt;dbl&gt;,
+#   X984 &lt;dbl&gt;, X983 &lt;dbl&gt;, X982 &lt;dbl&gt;, X981 &lt;dbl&gt;, X980 &lt;dbl&gt;, X979 &lt;dbl&gt;,
+#   X978 &lt;dbl&gt;, X977 &lt;dbl&gt;, X976 &lt;dbl&gt;, X975 &lt;dbl&gt;, X974 &lt;dbl&gt;, X973 &lt;dbl&gt;,
+#   X972 &lt;dbl&gt;, X971 &lt;dbl&gt;, X970 &lt;dbl&gt;, X969 &lt;dbl&gt;, X968 &lt;dbl&gt;, X967 &lt;dbl&gt;,
+#   X966 &lt;dbl&gt;, X965 &lt;dbl&gt;, X964 &lt;dbl&gt;, X963 &lt;dbl&gt;, X962 &lt;dbl&gt;, X961 &lt;dbl&gt;,
+#   X960 &lt;dbl&gt;, X959 &lt;dbl&gt;, X958 &lt;dbl&gt;, X957 &lt;dbl&gt;, X956 &lt;dbl&gt;, X955 &lt;dbl&gt;,
+#   X954 &lt;dbl&gt;, X953 &lt;dbl&gt;, X952 &lt;dbl&gt;, X951 &lt;dbl&gt;, X950 &lt;dbl&gt;, X949 &lt;dbl&gt;,
+#   X948 &lt;dbl&gt;, X947 &lt;dbl&gt;, X946 &lt;dbl&gt;, X945 &lt;dbl&gt;, X944 &lt;dbl&gt;, X943 &lt;dbl&gt;,
+#   X942 &lt;dbl&gt;, X941 &lt;dbl&gt;, X940 &lt;dbl&gt;, X939 &lt;dbl&gt;, X938 &lt;dbl&gt;, X937 &lt;dbl&gt;,
+#   X936 &lt;dbl&gt;, X935 &lt;dbl&gt;, X934 &lt;dbl&gt;, X933 &lt;dbl&gt;, X932 &lt;dbl&gt;, X931 &lt;dbl&gt;,
+#   X930 &lt;dbl&gt;, X929 &lt;dbl&gt;, X928 &lt;dbl&gt;, X927 &lt;dbl&gt;, X926 &lt;dbl&gt;, X925 &lt;dbl&gt;,
+#   X924 &lt;dbl&gt;, X923 &lt;dbl&gt;, X922 &lt;dbl&gt;, X921 &lt;dbl&gt;, X920 &lt;dbl&gt;, X919 &lt;dbl&gt;,
+#   X918 &lt;dbl&gt;, X917 &lt;dbl&gt;, X916 &lt;dbl&gt;, X915 &lt;dbl&gt;, X914 &lt;dbl&gt;, X913 &lt;dbl&gt;,
+#   X912 &lt;dbl&gt;, X911 &lt;dbl&gt;, X910 &lt;dbl&gt;, X909 &lt;dbl&gt;, X908 &lt;dbl&gt;, X907 &lt;dbl&gt;,
+#   X906 &lt;dbl&gt;, X905 &lt;dbl&gt;, X904 &lt;dbl&gt;, X903 &lt;dbl&gt;, X902 &lt;dbl&gt;, X901 &lt;dbl&gt;,
+#   X900 &lt;dbl&gt;, X899 &lt;dbl&gt;, X898 &lt;dbl&gt;, X897 &lt;dbl&gt;, X896 &lt;dbl&gt;, X895 &lt;dbl&gt;, ...
+</pre>
+</div>
+</div>
+
+<div id="outline-container-org164fb9e" class="outline-4">
+<h4 id="org164fb9e"><span class="section-number-4">1.2.2</span> plot data</h4>
+<div class="outline-text-4" id="text-1-2-2">
+<p>
+reshape data for plotting
+</p>
+<div class="org-src-container">
+<pre class="src src-R">dcr <span style="color: #268bd2; font-weight: bold;">&lt;-</span> dc <span style="color: #268bd2; font-weight: bold;">%&gt;%</span> sample_n(., 30) <span style="color: #268bd2; font-weight: bold;">%&gt;%</span> gather(key = wv, value = refl, -sample, -lma)
+dcr <span style="color: #268bd2; font-weight: bold;">&lt;-</span> dcr <span style="color: #268bd2; font-weight: bold;">%&gt;%</span> rowwise() <span style="color: #268bd2; font-weight: bold;">%&gt;%</span> mutate(wv = as.numeric(str_sub(wv, 2, nchar(wv))))
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figs/test_spectra.png" alt="test_spectra.png" />
+</p>
+</div>
+
+<p>
+If you want to look at the plot in plotly
+</p>
+<div class="org-src-container">
+<pre class="src src-R"><span style="color: #93a1a1;">#</span><span style="color: #93a1a1;">library(plotly)</span>
+<span style="color: #93a1a1;">#</span><span style="color: #93a1a1;">ggplotly(p, dynamicTicks = T)</span>
+</pre>
+</div>
+
+<p>
+much the discrimination of leaf lma appears to happen in the SWIR
+(greater than ~1500nm).
+Also, there are a handful of spectra in the sample of 30 that are
+pretty noisy out in the SWIR.
+</p>
+
+<p>
+x's are very correlated.  The response, lma, is the last column.
+</p>
+<div class="org-src-container">
+<pre class="src src-R"><span style="color: #268bd2; font-weight: bold;">library</span>(corrplot)
+a <span style="color: #268bd2; font-weight: bold;">&lt;-</span> spread(dcr, key = wv, value = refl)
+colnames(a)[-2] <span style="color: #268bd2; font-weight: bold;">&lt;-</span> ifelse(nchar(colnames(a)[-2]) == 3, paste0(<span style="color: #2aa198;">"0"</span>,colnames(a)[-2]), colnames(a)[-2])  <span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">to make alphabetic ordering work right</span>
+a[,c(2,seq(3,ncol(a),20))] <span style="color: #268bd2; font-weight: bold;">%&gt;%</span> cor <span style="color: #268bd2; font-weight: bold;">%&gt;%</span> corrplot(order = <span style="color: #2aa198;">"alphabet"</span>, type = <span style="color: #2aa198;">"upper"</span>, method = <span style="color: #2aa198;">"color"</span>)
+</pre>
+</div>
+
+
+<div class="figure">
+<p><img src="figs/cor.png" alt="cor.png" />
+</p>
+</div>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org9f90443" class="outline-3">
+<h3 id="org9f90443"><span class="section-number-3">1.3</span> fitting model</h3>
+<div class="outline-text-3" id="text-1-3">
+<div class="org-src-container">
+<pre class="src src-R">dim(dc)
+</pre>
+</div>
+
+<pre class="example">
+[1]  302 2153
+
+</pre>
+
+<p>
+I'll subset the data for faster fitting during the exploratory phase
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">n <span style="color: #268bd2; font-weight: bold;">&lt;-</span> 50 <span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">number of observations to sample</span>
+p <span style="color: #268bd2; font-weight: bold;">&lt;-</span> 80 <span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">number of wavelengths to sample</span>
+rows <span style="color: #268bd2; font-weight: bold;">&lt;-</span> sample(1:nrow(dc),n)
+cols <span style="color: #268bd2; font-weight: bold;">&lt;-</span> sample(3:ncol(dc),p)
+dcs <span style="color: #268bd2; font-weight: bold;">&lt;-</span> dc[rows, c(2,cols)]  <span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">make sure I keep column 2, which contains the target response, lma.</span>
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-R">dim(dcs)
+</pre>
+</div>
+
+<pre class="example">
+[1] 50 81
+
+</pre>
+
+<p>
+center the response, lma
+</p>
+<div class="org-src-container">
+<pre class="src src-R">dcs$lma <span style="color: #268bd2; font-weight: bold;">&lt;-</span> dcs$lma - mean(dcs$lma)
+</pre>
+</div>
+
+<p>
+caluculate &tau;<sub>0</sub>
+</p>
+<div class="org-src-container">
+<pre class="src src-R">  p0 <span style="color: #268bd2; font-weight: bold;">&lt;-</span> 4 <span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">prior guess for the number of non zero coefficients</span>
+  sigmaguess <span style="color: #268bd2; font-weight: bold;">&lt;-</span> 5  <span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">guess for sigma of gaussian response</span>
+  tau0 <span style="color: #268bd2; font-weight: bold;">&lt;-</span> p0 / (p - p0) * sigmaguess/sqrt(n)
+tau0
+</pre>
+</div>
+
+<p>
+tau0 is <code>[1] 0.03721615</code>
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">fit <span style="color: #268bd2; font-weight: bold;">&lt;-</span> stan_glm(lma ~ ., data = dcs, gaussian(), prior = hs(global_scale=tau0), prior_intercept = normal())
+</pre>
+</div>
+
+<pre class="example">
+
+SAMPLING FOR MODEL 'continuous' NOW (CHAIN 1).
+
+Gradient evaluation took 0.00017 seconds
+1000 transitions using 10 leapfrog steps per transition would take 1.7 seconds.
+Adjust your expectations accordingly!
+
+
+Iteration:    1 / 2000 [  0%]  (Warmup)
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+
+SAMPLING FOR MODEL 'continuous' NOW (CHAIN 2).
+
+Gradient evaluation took 0.00017 seconds
+1000 transitions using 10 leapfrog steps per transition would take 1.7 seconds.
+Adjust your expectations accordingly!
+
+
+Iteration:    1 / 2000 [  0%]  (Warmup)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+
+SAMPLING FOR MODEL 'continuous' NOW (CHAIN 3).
+
+Gradient evaluation took 0.000211 seconds
+1000 transitions using 10 leapfrog steps per transition would take 2.11 seconds.
+Adjust your expectations accordingly!
+
+
+Iteration:    1 / 2000 [  0%]  (Warmup)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 0.734682 seconds (Warm-up)
+               0.647442 seconds (Sampling)
+               1.38212 seconds (Total)
+
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
+
+SAMPLING FOR MODEL 'continuous' NOW (CHAIN 4).
+
+Gradient evaluation took 0.000225 seconds
+1000 transitions using 10 leapfrog steps per transition would take 2.25 seconds.
+Adjust your expectations accordingly!
+
+
+Iteration:    1 / 2000 [  0%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 0.764785 seconds (Warm-up)
+               0.686873 seconds (Sampling)
+               1.45166 seconds (Total)
+
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 1.04285 seconds (Warm-up)
+               0.514942 seconds (Sampling)
+               1.55779 seconds (Total)
+
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 0.961591 seconds (Warm-up)
+               0.48452 seconds (Sampling)
+               1.44611 seconds (Total)
+</pre>
+
+<p>
+All the diagnotics look good.  Most n<sub>effs</sub> are 4000, Rhats are 1.0.
+</p>
+
+
+<div class="figure">
+<p><img src="../figs/coefs.png" alt="coefs.png" />
+</p>
+</div>
+
+<p>
+The coefficients aren't shrunk towards zero like I would have
+expected. Is this due to the nature of the data, or how I specified
+the model?
+</p>
+
+<p>
+hmmm&#x2026;.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org5cc21c8" class="outline-3">
+<h3 id="org5cc21c8"><span class="section-number-3">1.4</span> OLS with a few wavelengths as predictors</h3>
+<div class="outline-text-3" id="text-1-4">
+<p>
+There is plenty of information in the data to estimate lma.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-R">dcss <span style="color: #268bd2; font-weight: bold;">&lt;-</span> dcs[,1:5]
+m <span style="color: #268bd2; font-weight: bold;">&lt;-</span> lm(lma ~ ., dcss)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-R">summary(m)
+</pre>
+</div>
+
+<pre class="example">
+
+Call:
+lm(formula = lma ~ ., data = dcss)
+
+Residuals:
+     Min       1Q   Median       3Q      Max
+-14.6340  -4.7781  -0.6099   5.4627  14.8608
+
+Coefficients:
+             Estimate Std. Error t value Pr(&gt;|t|)
+(Intercept)     2.015     19.867   0.101   0.9197
+X2406         272.151    158.902   1.713   0.0937 .
+X1761       -1180.422    188.178  -6.273 1.23e-07 ***
+X1329         814.137    119.195   6.830 1.82e-08 ***
+X645         -245.982    206.772  -1.190   0.2404
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 7.01 on 45 degrees of freedom
+Multiple R-squared:  0.911,	Adjusted R-squared:  0.9031
+F-statistic: 115.2 on 4 and 45 DF,  p-value: &lt; 2.2e-16
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org45bfabc" class="outline-2">
+<h2 id="org45bfabc"><span class="section-number-2">2</span> some references</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+see these slides
+<a href="https://github.com/avehtari/modelselection_tutorial/blob/master/regularizedhorseshoe_slides.pdf">https://github.com/avehtari/modelselection_tutorial/blob/master/regularizedhorseshoe_slides.pdf</a>
+</p>
+
+<p>
+see this paper
+<a href="https://arxiv.org/pdf/1707.01694.pdf">https://arxiv.org/pdf/1707.01694.pdf</a>
+</p>
+
+<p>
+gelman blog post
+<a href="http://andrewgelman.com/2017/02/14/lasso-regression-etc-stan/">http://andrewgelman.com/2017/02/14/lasso-regression-etc-stan/</a>
+</p>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: Tedward Erker</p>
+<p class="date">Created: 2018-01-29 Mon 12:38</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
