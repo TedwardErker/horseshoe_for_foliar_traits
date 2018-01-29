@@ -309,12 +309,12 @@ Iteration: 2000 / 2000 [100%]  (Sampling)
 
 All the diagnotics look good.  Most n_effs are 4000, Rhats are 1.0.
 
-#+begin_src R :exports results :results graphics :file ../figs/coefs.png :height 800
+#+begin_src R :exports results :results graphics :file figs/coefs.png :height 800
 plot(fit)
 #+end_src
 
 #+RESULTS:
-[[file:../figs/coefs.png]]
+[[file:figs/coefs.png]]
 
 The coefficients aren't shrunk towards zero like I would have
 expected. Is this due to the nature of the data, or how I specified
