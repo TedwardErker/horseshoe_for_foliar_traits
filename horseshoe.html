@@ -3,10 +3,10 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2018-01-29 Mon 12:38 -->
+<!-- 2018-01-29 Mon 13:41 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Predict LMA from leaf spectra with regularized horseshoe prior (e.g.N &lt; P model)</title>
+<title>Estimate LMA from leaf spectra with regularized horseshoe prior (e.g. n &lt; p model)</title>
 <meta name="generator" content="Org mode" />
 <meta name="author" content="Tedward Erker" />
 <style type="text/css">
@@ -228,25 +228,34 @@ for the JavaScript code in this tag.
 </head>
 <body>
 <div id="content">
-<h1 class="title">Predict LMA from leaf spectra with regularized horseshoe prior (e.g.N &lt; P model)</h1>
+<h1 class="title">Estimate LMA from leaf spectra with regularized horseshoe prior (e.g. n &lt; p model)</h1>
 <div id="table-of-contents">
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#orgc302759">1. Regularized Horseshoe</a>
+<li><a href="#orgffc1397">1. Regularized Horseshoe</a>
 <ul>
-<li><a href="#org27dab89">1.1. libraries</a></li>
-<li><a href="#org05c7ebc">1.2. load data and look at a plot of sample</a>
+<li><a href="#orgfefca96">1.1. libraries</a></li>
+<li><a href="#org0215925">1.2. load data and look at a plot of sample</a>
 <ul>
-<li><a href="#orgc9c19f6">1.2.1. load data</a></li>
-<li><a href="#org164fb9e">1.2.2. plot data</a></li>
+<li><a href="#org7ad64cf">1.2.1. load data</a></li>
+<li><a href="#org34b9595">1.2.2. plot data</a></li>
 </ul>
 </li>
-<li><a href="#org9f90443">1.3. fitting model</a></li>
-<li><a href="#org5cc21c8">1.4. OLS with a few wavelengths as predictors</a></li>
+<li><a href="#org8f10973">1.3. fitting model with horseshoe prior on coefficients</a>
+<ul>
+<li><a href="#orgc71585d">1.3.1. predict with model</a></li>
 </ul>
 </li>
-<li><a href="#org45bfabc">2. some references</a></li>
+<li><a href="#org195ceca">1.4. fitting model with gaussian prior on coefficients</a>
+<ul>
+<li><a href="#orgc368019">1.4.1. predict with model</a></li>
+</ul>
+</li>
+<li><a href="#orgda8df26">1.5. OLS with a few wavelengths as predictors</a></li>
+</ul>
+</li>
+<li><a href="#org1fae907">2. some references</a></li>
 </ul>
 </div>
 </div>
@@ -255,11 +264,11 @@ for the JavaScript code in this tag.
 Fitting n &lt;&lt; p model.  LMA ~ hyperspectral data
 </p>
 
-<div id="outline-container-orgc302759" class="outline-2">
-<h2 id="orgc302759"><span class="section-number-2">1</span> Regularized Horseshoe</h2>
+<div id="outline-container-orgffc1397" class="outline-2">
+<h2 id="orgffc1397"><span class="section-number-2">1</span> Regularized Horseshoe</h2>
 <div class="outline-text-2" id="text-1">
-</div><div id="outline-container-org27dab89" class="outline-3">
-<h3 id="org27dab89"><span class="section-number-3">1.1</span> libraries</h3>
+</div><div id="outline-container-orgfefca96" class="outline-3">
+<h3 id="orgfefca96"><span class="section-number-3">1.1</span> libraries</h3>
 <div class="outline-text-3" id="text-1-1">
 <div class="org-src-container">
 <pre class="src src-R"><span style="color: #268bd2; font-weight: bold;">library</span>(rstanarm)
@@ -297,11 +306,11 @@ The following objects are masked from ‘package:base’:
 </div>
 </div>
 
-<div id="outline-container-org05c7ebc" class="outline-3">
-<h3 id="org05c7ebc"><span class="section-number-3">1.2</span> load data and look at a plot of sample</h3>
+<div id="outline-container-org0215925" class="outline-3">
+<h3 id="org0215925"><span class="section-number-3">1.2</span> load data and look at a plot of sample</h3>
 <div class="outline-text-3" id="text-1-2">
-</div><div id="outline-container-orgc9c19f6" class="outline-4">
-<h4 id="orgc9c19f6"><span class="section-number-4">1.2.1</span> load data</h4>
+</div><div id="outline-container-org7ad64cf" class="outline-4">
+<h4 id="org7ad64cf"><span class="section-number-4">1.2.1</span> load data</h4>
 <div class="outline-text-4" id="text-1-2-1">
 <p>
 These data come from this paper: <a href="https://doi.org/10.1890/13-2110.1">https://doi.org/10.1890/13-2110.1</a>.
@@ -310,12 +319,12 @@ data, but they should work for the purposes of exploring the use of
 the horseshoe prior.
 </p>
 
-<p>
-obs unit, each row: a leaf identified by "sample"
-response: lma = leaf mass per area, a foliar trait.
-predictors, x = percent reflectance at a given wavelength.  wavelengths are column
-names and are in nanometers.
-</p>
+<ul class="org-ul">
+<li>obs unit, each row: a leaf identified by "sample"</li>
+<li>response: lma = leaf mass per area, a foliar trait.</li>
+<li>predictors, x = percent reflectance at a given wavelength.
+wavelengths are column names and are in nanometers.</li>
+</ul>
 
 
 <div class="org-src-container">
@@ -328,18 +337,6 @@ x <span style="color: #268bd2; font-weight: bold;">&lt;-</span> select(x, -nitro
 d <span style="color: #268bd2; font-weight: bold;">&lt;-</span> left_join(lma, x)<span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">join data</span>
 </pre>
 </div>
-
-<pre class="example">
-Parsed with column specification:
-cols(
-  .default = col_double(),
-  sample = col_character()
-)
-See spec(...) for full column specifications.
-|=                                                                       |   1%|==                                                                      |   3%|===                                                                     |   4%|====                                                                    |   6%|=====                                                                   |   7%|======                                                                  |   9%|=======                                                                 |  10%|=========                                                               |  12%|=========                                                       |  13%    1 MB|==========                                                      |  15%    1 MB|===========                                                     |  16%    1 MB|============                                                    |  18%    1 MB|============                                                    |  19%    1 MB|=============                                                   |  21%    1 MB|==============                                                  |  23%    1 MB|===============                                                 |  24%    1 MB|================                                                |  26%    1 MB|=================                                               |  27%    2 MB|==================                                              |  29%    2 MB|===================                                             |  30%    2 MB|====================                                            |  32%    2 MB|=====================                                           |  33%    2 MB|======================                                          |  35%    2 MB|=======================                                         |  36%    2 MB|========================                                        |  38%    2 MB|=========================                                       |  39%    2 MB|==========================                                      |  41%    3 MB|===========================                                     |  42%    3 MB|============================                                    |  44%    3 MB|=============================                                   |  45%    3 MB|==============================                                  |  47%    3 MB|===============================                                 |  48%    3 MB|================================                                |  50%    3 MB|=================================                               |  51%    3 MB|==================================                              |  53%    4 MB|===================================                             |  54%    4 MB|====================================                            |  56%    4 MB|=====================================                           |  57%    4 MB|======================================                          |  59%    4 MB|=======================================                         |  60%    4 MB|========================================                        |  62%    4 MB|=========================================                       |  63%    4 MB|==========================================                      |  65%    4 MB|===========================================                     |  66%    5 MB|============================================                    |  68%    5 MB|=============================================                   |  70%    5 MB|==============================================                  |  71%    5 MB|===============================================                 |  73%    5 MB|================================================                |  74%    5 MB|=================================================               |  76%    5 MB|==================================================              |  77%    5 MB|===================================================             |  79%    5 MB|====================================================            |  80%    6 MB|=====================================================           |  82%    6 MB|======================================================          |  83%    6 MB|=======================================================         |  85%    6 MB|========================================================        |  86%    6 MB|=========================================================       |  88%    6 MB|==========================================================      |  89%    6 MB|===========================================================     |  91%    6 MB|============================================================    |  92%    6 MB|=============================================================   |  94%    7 MB|==============================================================  |  95%    7 MB|=============================================================== |  97%    7 MB|================================================================|  98%    7 MB|=================================================================| 100%    7 MB
-Joining, by = "sample"
-
-</pre>
 
 <p>
 drop leaves for which we have no spectra (not sure why this is so).
@@ -385,8 +382,8 @@ drop leaves for which we have no spectra (not sure why this is so).
 </div>
 </div>
 
-<div id="outline-container-org164fb9e" class="outline-4">
-<h4 id="org164fb9e"><span class="section-number-4">1.2.2</span> plot data</h4>
+<div id="outline-container-org34b9595" class="outline-4">
+<h4 id="org34b9595"><span class="section-number-4">1.2.2</span> plot data</h4>
 <div class="outline-text-4" id="text-1-2-2">
 <p>
 reshape data for plotting
@@ -420,7 +417,8 @@ pretty noisy out in the SWIR.
 </p>
 
 <p>
-x's are very correlated.  The response, lma, is the last column.
+<b>x's are very correlated</b>.  The response, lma, is the last column. The
+ figure is bigt so the wavelength names are clear
 </p>
 <div class="org-src-container">
 <pre class="src src-R"><span style="color: #268bd2; font-weight: bold;">library</span>(corrplot)
@@ -439,8 +437,8 @@ a[,c(2,seq(3,ncol(a),20))] <span style="color: #268bd2; font-weight: bold;">%&gt
 </div>
 </div>
 
-<div id="outline-container-org9f90443" class="outline-3">
-<h3 id="org9f90443"><span class="section-number-3">1.3</span> fitting model</h3>
+<div id="outline-container-org8f10973" class="outline-3">
+<h3 id="org8f10973"><span class="section-number-3">1.3</span> fitting model with horseshoe prior on coefficients</h3>
 <div class="outline-text-3" id="text-1-3">
 <div class="org-src-container">
 <pre class="src src-R">dim(dc)
@@ -479,7 +477,8 @@ dcs <span style="color: #268bd2; font-weight: bold;">&lt;-</span> dc[rows, c(2,c
 center the response, lma
 </p>
 <div class="org-src-container">
-<pre class="src src-R">dcs$lma <span style="color: #268bd2; font-weight: bold;">&lt;-</span> dcs$lma - mean(dcs$lma)
+<pre class="src src-R">lma_center <span style="color: #268bd2; font-weight: bold;">&lt;-</span> mean(dcs$lma)
+dcs$lma <span style="color: #268bd2; font-weight: bold;">&lt;-</span> dcs$lma - lma_center
 </pre>
 </div>
 
@@ -487,15 +486,20 @@ center the response, lma
 caluculate &tau;<sub>0</sub>
 </p>
 <div class="org-src-container">
-<pre class="src src-R">  p0 <span style="color: #268bd2; font-weight: bold;">&lt;-</span> 4 <span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">prior guess for the number of non zero coefficients</span>
+<pre class="src src-R">  p0 <span style="color: #268bd2; font-weight: bold;">&lt;-</span> 5 <span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">prior guess for the number of non zero coefficients</span>
   sigmaguess <span style="color: #268bd2; font-weight: bold;">&lt;-</span> 5  <span style="color: #93a1a1;"># </span><span style="color: #93a1a1;">guess for sigma of gaussian response</span>
   tau0 <span style="color: #268bd2; font-weight: bold;">&lt;-</span> p0 / (p - p0) * sigmaguess/sqrt(n)
 tau0
 </pre>
 </div>
 
+<pre class="example">
+[1] 0.04714045
+
+</pre>
+
 <p>
-tau0 is <code>[1] 0.03721615</code>
+tau0 is <code>[1] 0.04714045</code>
 </p>
 
 <div class="org-src-container">
@@ -507,102 +511,102 @@ tau0 is <code>[1] 0.03721615</code>
 
 SAMPLING FOR MODEL 'continuous' NOW (CHAIN 1).
 
-Gradient evaluation took 0.00017 seconds
-1000 transitions using 10 leapfrog steps per transition would take 1.7 seconds.
+Gradient evaluation took 0.00033 seconds
+1000 transitions using 10 leapfrog steps per transition would take 3.3 seconds.
 Adjust your expectations accordingly!
 
 
 Iteration:    1 / 2000 [  0%]  (Warmup)
-Iteration:  200 / 2000 [ 10%]  (Warmup)
-Iteration:  400 / 2000 [ 20%]  (Warmup)
 
 SAMPLING FOR MODEL 'continuous' NOW (CHAIN 2).
 
-Gradient evaluation took 0.00017 seconds
-1000 transitions using 10 leapfrog steps per transition would take 1.7 seconds.
+Gradient evaluation took 0.000366 seconds
+1000 transitions using 10 leapfrog steps per transition would take 3.66 seconds.
 Adjust your expectations accordingly!
 
 
 Iteration:    1 / 2000 [  0%]  (Warmup)
-Iteration:  600 / 2000 [ 30%]  (Warmup)
-Iteration:  800 / 2000 [ 40%]  (Warmup)
-Iteration: 1000 / 2000 [ 50%]  (Warmup)
-Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Iteration: 1200 / 2000 [ 60%]  (Sampling)
-Iteration:  200 / 2000 [ 10%]  (Warmup)
-Iteration: 1400 / 2000 [ 70%]  (Sampling)
-Iteration:  400 / 2000 [ 20%]  (Warmup)
 
 SAMPLING FOR MODEL 'continuous' NOW (CHAIN 3).
 
-Gradient evaluation took 0.000211 seconds
-1000 transitions using 10 leapfrog steps per transition would take 2.11 seconds.
+Gradient evaluation took 0.000391 seconds
+1000 transitions using 10 leapfrog steps per transition would take 3.91 seconds.
 Adjust your expectations accordingly!
 
 
 Iteration:    1 / 2000 [  0%]  (Warmup)
-Iteration:  600 / 2000 [ 30%]  (Warmup)
-Iteration: 1600 / 2000 [ 80%]  (Sampling)
-Iteration:  800 / 2000 [ 40%]  (Warmup)
-Iteration: 1800 / 2000 [ 90%]  (Sampling)
-Iteration: 1000 / 2000 [ 50%]  (Warmup)
-Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Iteration: 1200 / 2000 [ 60%]  (Sampling)
-Iteration: 2000 / 2000 [100%]  (Sampling)
-
- Elapsed Time: 0.734682 seconds (Warm-up)
-               0.647442 seconds (Sampling)
-               1.38212 seconds (Total)
-
-Iteration:  200 / 2000 [ 10%]  (Warmup)
-Iteration: 1400 / 2000 [ 70%]  (Sampling)
 
 SAMPLING FOR MODEL 'continuous' NOW (CHAIN 4).
 
-Gradient evaluation took 0.000225 seconds
-1000 transitions using 10 leapfrog steps per transition would take 2.25 seconds.
+Gradient evaluation took 0.000403 seconds
+1000 transitions using 10 leapfrog steps per transition would take 4.03 seconds.
 Adjust your expectations accordingly!
 
 
 Iteration:    1 / 2000 [  0%]  (Warmup)
-Iteration:  400 / 2000 [ 20%]  (Warmup)
-Iteration: 1600 / 2000 [ 80%]  (Sampling)
-Iteration:  600 / 2000 [ 30%]  (Warmup)
-Iteration: 1800 / 2000 [ 90%]  (Sampling)
-Iteration:  800 / 2000 [ 40%]  (Warmup)
-Iteration: 2000 / 2000 [100%]  (Sampling)
-
- Elapsed Time: 0.764785 seconds (Warm-up)
-               0.686873 seconds (Sampling)
-               1.45166 seconds (Total)
-
 Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
 Iteration: 1000 / 2000 [ 50%]  (Warmup)
 Iteration: 1001 / 2000 [ 50%]  (Sampling)
 Iteration:  400 / 2000 [ 20%]  (Warmup)
-Iteration: 1200 / 2000 [ 60%]  (Sampling)
-Iteration:  600 / 2000 [ 30%]  (Warmup)
-Iteration: 1400 / 2000 [ 70%]  (Sampling)
 Iteration:  800 / 2000 [ 40%]  (Warmup)
-Iteration: 1600 / 2000 [ 80%]  (Sampling)
-Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
 Iteration: 1000 / 2000 [ 50%]  (Warmup)
 Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Iteration: 2000 / 2000 [100%]  (Sampling)
-
- Elapsed Time: 1.04285 seconds (Warm-up)
-               0.514942 seconds (Sampling)
-               1.55779 seconds (Total)
-
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
 Iteration: 1200 / 2000 [ 60%]  (Sampling)
 Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
 Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
 Iteration: 1800 / 2000 [ 90%]  (Sampling)
 Iteration: 2000 / 2000 [100%]  (Sampling)
 
- Elapsed Time: 0.961591 seconds (Warm-up)
-               0.48452 seconds (Sampling)
-               1.44611 seconds (Total)
+ Elapsed Time: 11.0892 seconds (Warm-up)
+               12.0994 seconds (Sampling)
+               23.1886 seconds (Total)
+
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 12.445 seconds (Warm-up)
+               11.6852 seconds (Sampling)
+               24.1303 seconds (Total)
+
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 15.2933 seconds (Warm-up)
+               11.6306 seconds (Sampling)
+               26.9239 seconds (Total)
+
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 17.1099 seconds (Warm-up)
+               10.9514 seconds (Sampling)
+               28.0612 seconds (Total)
 </pre>
 
 <p>
@@ -611,27 +615,208 @@ All the diagnotics look good.  Most n<sub>effs</sub> are 4000, Rhats are 1.0.
 
 
 <div class="figure">
-<p><img src="../figs/coefs.png" alt="coefs.png" />
+<p><img src="figs/coefs.png" alt="coefs.png" />
 </p>
 </div>
 
 <p>
 The coefficients aren't shrunk towards zero like I would have
 expected. Is this due to the nature of the data, or how I specified
-the model?
+the model?  I expected more shrinkage towards 0 and a few standout
+predictors.
 </p>
 
 <p>
-hmmm&#x2026;.
+I've tested p0 values from 1 to 50 and the results are very similar.
 </p>
+</div>
+
+<div id="outline-container-orgc71585d" class="outline-4">
+<h4 id="orgc71585d"><span class="section-number-4">1.3.1</span> predict with model</h4>
+<div class="outline-text-4" id="text-1-3-1">
+<div class="org-src-container">
+<pre class="src src-R">unsampledrows <span style="color: #268bd2; font-weight: bold;">&lt;-</span> (1:nrow(dc))[!1:nrow(dc) <span style="color: #268bd2; font-weight: bold;">%in%</span> rows]
+newrows <span style="color: #268bd2; font-weight: bold;">&lt;-</span> sample(unsampledrows, 50)
+newdata <span style="color: #268bd2; font-weight: bold;">&lt;-</span> dc[newrows, c(2,cols)]
+y_rep <span style="color: #268bd2; font-weight: bold;">&lt;-</span> posterior_predict(fit, newdata)
+predictions_mean <span style="color: #268bd2; font-weight: bold;">&lt;-</span> apply(y_rep, 2, mean) + lma_center
+</pre>
+</div>
+
+<p>
+RMSE prediction
+</p>
+<div class="org-src-container">
+<pre class="src src-R">sqrt(mean((newdata$lma - predictions_mean)^2))
+</pre>
+</div>
+
+<pre class="example">
+[1] 11.9029
+
+</pre>
+</div>
 </div>
 </div>
 
-<div id="outline-container-org5cc21c8" class="outline-3">
-<h3 id="org5cc21c8"><span class="section-number-3">1.4</span> OLS with a few wavelengths as predictors</h3>
+<div id="outline-container-org195ceca" class="outline-3">
+<h3 id="org195ceca"><span class="section-number-3">1.4</span> fitting model with gaussian prior on coefficients</h3>
 <div class="outline-text-3" id="text-1-4">
+<div class="org-src-container">
+<pre class="src src-R">fit_gaus <span style="color: #268bd2; font-weight: bold;">&lt;-</span> stan_glm(lma ~ ., data = dcs, gaussian(), prior = normal())
+</pre>
+</div>
+
+<pre class="example">
+
+SAMPLING FOR MODEL 'continuous' NOW (CHAIN 1).
+
+Gradient evaluation took 0.000195 seconds
+1000 transitions using 10 leapfrog steps per transition would take 1.95 seconds.
+Adjust your expectations accordingly!
+
+
+Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'continuous' NOW (CHAIN 2).
+
+Gradient evaluation took 0.000258 seconds
+1000 transitions using 10 leapfrog steps per transition would take 2.58 seconds.
+Adjust your expectations accordingly!
+
+
+Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'continuous' NOW (CHAIN 3).
+
+Gradient evaluation took 0.000248 seconds
+1000 transitions using 10 leapfrog steps per transition would take 2.48 seconds.
+Adjust your expectations accordingly!
+
+
+Iteration:    1 / 2000 [  0%]  (Warmup)
+
+SAMPLING FOR MODEL 'continuous' NOW (CHAIN 4).
+
+Gradient evaluation took 0.000271 seconds
+1000 transitions using 10 leapfrog steps per transition would take 2.71 seconds.
+Adjust your expectations accordingly!
+
+
+Iteration:    1 / 2000 [  0%]  (Warmup)
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration:  200 / 2000 [ 10%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+Iteration:  400 / 2000 [ 20%]  (Warmup)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration:  600 / 2000 [ 30%]  (Warmup)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration:  800 / 2000 [ 40%]  (Warmup)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 1000 / 2000 [ 50%]  (Warmup)
+Iteration: 1001 / 2000 [ 50%]  (Sampling)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Iteration: 1200 / 2000 [ 60%]  (Sampling)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration: 1400 / 2000 [ 70%]  (Sampling)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 55.4148 seconds (Warm-up)
+               45.1006 seconds (Sampling)
+               100.515 seconds (Total)
+
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration: 1600 / 2000 [ 80%]  (Sampling)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 56.737 seconds (Warm-up)
+               56.4095 seconds (Sampling)
+               113.147 seconds (Total)
+
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration: 1800 / 2000 [ 90%]  (Sampling)
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 54.3435 seconds (Warm-up)
+               71.0201 seconds (Sampling)
+               125.364 seconds (Total)
+
+Iteration: 2000 / 2000 [100%]  (Sampling)
+
+ Elapsed Time: 63.2991 seconds (Warm-up)
+               67.2472 seconds (Sampling)
+               130.546 seconds (Total)
+</pre>
+
 <p>
-There is plenty of information in the data to estimate lma.
+All the diagnotics look good.  Most n<sub>effs</sub> are 4000, Rhats are 1.0.
+</p>
+
+
+<div class="figure">
+<p><img src="figs/coefs_gaus.png" alt="coefs_gaus.png" />
+</p>
+</div>
+
+<p>
+this looks more like what I expected from the horseshoe prior.  What
+am I missing?
+</p>
+</div>
+
+
+<div id="outline-container-orgc368019" class="outline-4">
+<h4 id="orgc368019"><span class="section-number-4">1.4.1</span> predict with model</h4>
+<div class="outline-text-4" id="text-1-4-1">
+<div class="org-src-container">
+<pre class="src src-R">y_rep_gaus <span style="color: #268bd2; font-weight: bold;">&lt;-</span> posterior_predict(fit_gaus, newdata)
+predictions_mean_gaus <span style="color: #268bd2; font-weight: bold;">&lt;-</span> apply(y_rep_gaus, 2, mean) + lma_center
+</pre>
+</div>
+
+<p>
+RMSE prediction
+</p>
+<div class="org-src-container">
+<pre class="src src-R">sqrt(mean((newdata$lma - predictions_mean_gaus)^2))
+</pre>
+</div>
+
+<pre class="example">
+[1] 11.50409
+
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgda8df26" class="outline-3">
+<h3 id="orgda8df26"><span class="section-number-3">1.5</span> OLS with a few wavelengths as predictors</h3>
+<div class="outline-text-3" id="text-1-5">
+<p>
+There is plenty of information in the data to estimate lma.  Picking
+the first 4 randomly selected wavelengths does a fine job.
 </p>
 
 <div class="org-src-container">
@@ -668,12 +853,28 @@ Residual standard error: 7.01 on 45 degrees of freedom
 Multiple R-squared:  0.911,	Adjusted R-squared:  0.9031
 F-statistic: 115.2 on 4 and 45 DF,  p-value: &lt; 2.2e-16
 </pre>
+
+<div class="org-src-container">
+<pre class="src src-R">lm_newdata <span style="color: #268bd2; font-weight: bold;">&lt;-</span> dc[newrows,colnames(dcss)]
+lm_predict <span style="color: #268bd2; font-weight: bold;">&lt;-</span> predict(m, lm_newdata)
+</pre>
+</div>
+
+<div class="org-src-container">
+<pre class="src src-R">sqrt(mean((lm_newdata$lma - lm_predict)^2))
+</pre>
+</div>
+
+<pre class="example">
+[1] 56.76659
+
+</pre>
 </div>
 </div>
 </div>
 
-<div id="outline-container-org45bfabc" class="outline-2">
-<h2 id="org45bfabc"><span class="section-number-2">2</span> some references</h2>
+<div id="outline-container-org1fae907" class="outline-2">
+<h2 id="org1fae907"><span class="section-number-2">2</span> some references</h2>
 <div class="outline-text-2" id="text-2">
 <p>
 see these slides
@@ -694,7 +895,7 @@ gelman blog post
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Tedward Erker</p>
-<p class="date">Created: 2018-01-29 Mon 12:38</p>
+<p class="date">Created: 2018-01-29 Mon 13:41</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
